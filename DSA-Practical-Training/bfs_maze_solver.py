@@ -36,7 +36,7 @@ def bfs_maze_solver(maze, start, end):
 
             # Check if neighbor is valid, not visited and not an obstacle
             if (0 <= neighbor[0] < len(maze) and # Check for valid row
-                0 <= neighbor[1] < len(maze[0]) and # Check for falid col
+                0 <= neighbor[1] < len(maze[0]) and # Check for valid col
                 maze[neighbor[0]][neighbor[1]] == 0 and # Check if not an obstacle
                 neighbor not in visited): # Check if already visited
 
