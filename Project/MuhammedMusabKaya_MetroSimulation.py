@@ -1,6 +1,6 @@
 from collections import defaultdict, deque
 import heapq
-from typing import Dict, List, Set, Tuple, Optional
+from typing import Dict, List, Tuple, Optional
 
 class Station:
     def __init__(self, idx: str, name: str, line: str):
@@ -8,6 +8,15 @@ class Station:
         self.name = name
         self.line = line
         self.neighbors: List[Tuple["Station", int]] = [] # (Station, time) tuples
+
+        # Parent station's index (for backtracking)
+        self.parent_station = None
+        # Total time to the station (g + h)
+        self.f = float("inf")
+        # Time from start to this station
+        self.g = float("inf")
+        # Heuristic time from this station to destination
+        self.h = 0
 
     def add_neighbor(self, station: "Station", time: int):
         self.neighbors.append((station, time))
@@ -53,7 +62,7 @@ class MetroNetwork:
         dest_station = self.stations[dest_id]
 
         queue = deque([(start_station, [start_station])])
-        visited = Set()
+        visited = set()
 
         while queue:
             (current_station, path) = queue.popleft()
@@ -101,143 +110,92 @@ class MetroNetwork:
         
         start_station = self.stations[start_id]
         dest_station = self.stations[dest_id]
-        visited = Set()
+        visited = set()
 
-        # # Parent cell's row index
-        # self.parent_station = 0
-        # # Parent cell's column index
-        # # Total cost of the cell (g + h)
-        # self.f = float("inf")
-        # # Cost from start to this cell
-        # self.g = float("inf")
-        # # Heuristic cost from this cell to destination
-        # self.h = 0
+        # Reseting the f, g, and h values for the start station
+        start_station.g = 0
+        start_station.h = self.calculate_heuristic(start_station, dest_station)
+        start_station.f = start_station.g + start_station.h
 
-        # # Check if a cell is valid (within the grid 
-        # return (row >= 0) and (row < ROW) and (col >= 0) and (col < COL)
+        open_list = [] # Priority queue for the A* (Star) Algo
+        heapq.heappush(open_list, (start_station.f, start_station)) # including the start_station in the priority queue
 
-        # # Check if a cell is the destination
-        # return row == dest[0] and col == dest[1]
+        while open_list:
+            f, current_station = heapq.heappop(open_list) # Extracting the station with the lowest f value from the priority queue
+            visited.add(current_station) # Mark the current station as visited
 
-        # # Calculate the heuristic value of a cell (Euclidean distance to destination)
-        # return ((row - dest[0]) ** 2 + (col - dest[1]) ** 2) ** 0.5
+            # Check if destination is reached and return the path
+            if current_station == dest_station:
+                path = self.trace_path(current_station)
+                total_time = current_station.g
+                return path, total_time
 
-        # print("The path is ")
-        # path = []
-        # row = dest[0]
-        # col = dest[1]
+            for neighbor_station, travel_time in current_station.neighbors:
+                if neighbor_station not in visited:
+                    g_new = current_station.g + travel_time
+                    h_new = self.calculate_heuristic(neighbor_station, dest_station)
+                    f_new = g_new + h_new
 
-        # # Trace the path from destination to source using parent cells
-        # while not (cell_details[row][col].parent_i == row and
-        #         cell_details[row][col].parent_j == col):
-        #     path.append((row, col))
-        #     temp_row = cell_details[row][col].parent_i
-        #     temp_col = cell_details[row][col].parent_j
-        #     row = temp_row
-        #     col = temp_col
+                    if f_new < neighbor_station.f:
+                        heapq.heappush(open_list, (f_new, neighbor_station))
+                        neighbor_station.f = f_new
+                        neighbor_station.g = g_new
+                        neighbor_station.h = h_new
+                        neighbor_station.parent_station = current_station
 
-        # # Add the source cell to the path
-        # path.append((row, col))
+        # If no path is found, return None
+        return None
+
+    def trace_path(self, destination):
+        """
+        This function traces the path from destination station to the start station
+        using the parent station information of each station. (Backtracking)
+
+        Args:
+            destination (Station): The destination station.
+
+        Returns:
+            List[Station]: The path from the destination station to the start station.
+        """
+        path = []
+        current_station = destination
+
+        while current_station is not None:
+            path.append(current_station)
+            current_station = current_station.parent_station # go back to the parent station
         
-        # # Reverse the path to get the path from source to destination
-        # path.reverse()
+        path.reverse() # Reverse the path to get the path from start to destination
 
-        # # Print the path
-        # for i in path:
-        #     print("->", i, end=" ")
-        # print()
+        return path
+    
+    def calculate_heuristic(self, current_station: "Station", dest_station: "Station"):
+        """
+        This function calculates the heuristic time from the current station to the destination station.
 
-        def a_star_search(grid, src, dest):
-            # Check if the source and destination are valid
-            if not is_valid(src[0], src[1]) or not is_valid(dest[0], dest[1]):
-                print("Source or destination is invalid")
-                return
-            
-            # Check if the source and destination are unblocked
-            if not is_unblocked(grid, src[0], src[1] or not is_unblocked(grid, dest[0], dest[1])):
-                print("Source or destination is blocked")
-                return
-            
-            # Check if we are already at the destination
-            if is_destination(src[0], src[1], dest):
-                print("We are already at he destination")
-                return
-            
-            # Initialize the closed list (visited cells)
-            closed_list = [[False for _ in range(COL)] for _ in range(ROW)]
+        Args:
+            current_station (Station): The current station.
+            dest_station (Station): The destination station.
 
-            # Initialize the details of each cell
-            cell_details = [[Cell() for _ in range(COL)] for _ in range(ROW)]
+        Returns:
+            float: The heuristic time from the current station to the destination station.
+        """
+        # If the current station and destination station are on the same line
+        if current_station.line == dest_station.line:
+            # Predict time to destination station
+            current_index = self.lines[current_station.line].index(current_station)
+            dest_index = self.lines[current_station.line].index(dest_station)
 
-            # Initialize the start cell details
-            i = src[0]
-            j = src[1]
-            cell_details[i][j].f = 0
-            cell_details[i][j].g= 0
-            cell_details[i][j].h = 0
-            cell_details[i][j].parent_i = i
-            cell_details[i][j].parent_j = j
-
-            # Initialize the open list (cells to be visited) with the start cell
-            open_list = []
-            heapq.heappush(open_list, (0.0, i, j))
-
-            # Initialize the flag for whether destination is found
-            found_dest = False
-
-            # Main loop of the A* (Star) Search Algorithm
-            while len(open_list) > 0:
-                # Pop the cell with the lowest f value from the open list
-                p = heapq.heappop(open_list)
-
-                # Mark the cell as visited
-                i = p[1]
-                j = p[2]
-                closed_list[i][j] = True
-
-                # For each direction, check the successors
-                directions = [(0, -1), (0, 1), (1, 0), (-1, 0),
-                            (1, 1), (1, -1), (-1, 1), (-1, -1)]
-                
-                for dir in directions:
-                    new_i = i + dir[0]
-                    new_j = j + dir[1]
-
-                    # If the successor is valid, unblocked, and not visited
-                    if is_valid(new_i, new_j) and is_unblocked(grid, new_i, new_j) and not closed_list[new_i][new_j]:
-                        # If the successoris the destination
-                        if is_destination(new_i, new_j, dest):
-                            # Set the parent of the destination cell
-                            cell_details[new_i][new_j].parent_i = i
-                            cell_details[new_i][new_j].parent_j = j
-                            print("The destination cell is found")
-
-                            #Trace and print the path from source to destination
-                            trace_path(cell_details, dest)
-                            found_dest = True
-                            return
-                    else:
-                        # Calculate the new f, g, and h values
-                        g_new = cell_details[i][j].g + 1.0
-                        h_new = calculate_h_value(new_i, new_j, dest)
-                        f_new = g_new + h_new
-
-                        # If the cell is not in the open list or the new f value is smaller
-                        if cell_details[new_i][new_j].f == float("inf") or cell_details[new_i][new_j].f > f_new:
-                            
-                            # Add the cell to the open list
-                            heapq.heappush(open_list, (f_new, new_i, new_j))
-
-                            # Update the cell details
-                            cell_details[new_i][new_j].f = f_new
-                            cell_details[new_i][new_j].g = g_new
-                            cell_details[new_i][new_j].h = h_new
-                            cell_details[new_i][new_j].parent_i = i
-                            cell_details[new_i][new_j].parent_j = j
-
-            # If the destination is not found after visiting all cells
-            if not found_dest:
-                print("Failed to find the destination cell")
+            # Calculate the time to destination station by adding each station's travel time
+            total_time = 0
+            # If current_station is before dest_station
+            for neighbor_station, travel_time in current_station.neighbors:
+                # Burada her komşu istasyon ve geçiş süresi üzerinde işlem yapılır
+                total_time += travel_time
+                    
+            return total_time
+        else:
+            # If current_station is on another line than dest_station return infinity
+            return float("inf")
 
 
 # Example Usage
@@ -285,7 +243,7 @@ if __name__ == "__main__":
     metro.add_connection("M4", "T3", 2) # Gar transfer
 
     # Test Scenarios
-    print("\n=== Test Scenarios===")
+    print("\n=== Test Scenarios ===")
 
     # Scenario 1: From AŞTİ to OSB
     print("\n1. From AŞTİ to OSB: ")
@@ -299,7 +257,7 @@ if __name__ == "__main__":
         print(f"Fastet route ({time} minutes): ", " -> ".join(i.name for i in route))
     
     # Scenario 2: From Batıkent to Keçiören
-    print("\n1. From Batıkent to Keçiören: ")
+    print("\n2. From Batıkent to Keçiören: ")
     route = metro.find_least_transfer("T1", "T4")
     if route:
         print("Route with least transfers: ", " -> ".join(i.name for i in route))
@@ -310,7 +268,7 @@ if __name__ == "__main__":
         print(f"Fastet route ({time} minutes): ", " -> ".join(i.name for i in route))
     
     # Scenario 1: From Keçiören to AŞTİ
-    print("\n1. From Keçiören to AŞTİ: ")
+    print("\n3. From Keçiören to AŞTİ: ")
     route = metro.find_least_transfer("T4", "M1")
     if route:
         print("Route with least transfers: ", " -> ".join(i.name for i in route))
