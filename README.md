@@ -91,7 +91,7 @@ Fastest route (19 minutes):  Keçiören -> Gar -> Gar -> Sıhhiye -> Kızılay -
 ---
 
 ## ✨ Credits
-Developed as part of the **Global AI Hub Python & AI Bootcamp (March 2025)** by Muhammed Musab Kaya with the guidance of project mentors and the help of ChatGPT.
+Developed as part of the **Global AI Hub Python & AI Bootcamp (March 2025)** by Muhammed Musab Kaya with the guidance of project mentors.
 
 ---
 
