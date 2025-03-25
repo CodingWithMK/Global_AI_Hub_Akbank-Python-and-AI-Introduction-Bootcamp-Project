@@ -3,7 +3,7 @@ import heapq
 from typing import Dict, List, Tuple, Optional
 
 class Station:
-    def __init__(self, idx: str, name: str, line: str):
+    def __init__(self, idx: str, name: str, line: str):        
         self.idx = idx
         self.name = name
         self.line = line
@@ -20,6 +20,10 @@ class Station:
 
     def add_neighbor(self, station: "Station", time: int):
         self.neighbors.append((station, time))
+
+    def __lt__(self, other):
+        # For priority queue to compare stations
+        return self.idx < other.idx
 
     
 class MetroNetwork:
@@ -113,6 +117,12 @@ class MetroNetwork:
         visited = set()
 
         # Reseting the f, g, and h values for the start station
+        for station in self.stations.values():
+            station.f = float("inf")
+            station.g = float("inf")
+            station.h = 0
+            station.parent_station = None
+
         start_station.g = 0
         start_station.h = self.calculate_heuristic(start_station, dest_station)
         start_station.f = start_station.g + start_station.h
@@ -142,6 +152,8 @@ class MetroNetwork:
                         neighbor_station.g = g_new
                         neighbor_station.h = h_new
                         neighbor_station.parent_station = current_station
+            
+        # print(f"Checking station: {current_station.name}, f: {f}, g: {current_station.g}, h: {current_station.h}")
 
         # If no path is found, return None
         return None
@@ -168,7 +180,7 @@ class MetroNetwork:
 
         return path
     
-    def calculate_heuristic(self, current_station: "Station", dest_station: "Station"):
+    def calculate_heuristic(self, current_station: "Station", dest_station: "Station") -> float:
         """
         This function calculates the heuristic time from the current station to the destination station.
 
@@ -179,23 +191,21 @@ class MetroNetwork:
         Returns:
             float: The heuristic time from the current station to the destination station.
         """
-        # If the current station and destination station are on the same line
-        if current_station.line == dest_station.line:
-            # Predict time to destination station
-            current_index = self.lines[current_station.line].index(current_station)
-            dest_index = self.lines[current_station.line].index(dest_station)
+        visited = set()
+        queue = deque([(current_station, 0)]) # (station, accumulated_time)
 
-            # Calculate the time to destination station by adding each station's travel time
-            total_time = 0
-            # If current_station is before dest_station
-            for neighbor_station, travel_time in current_station.neighbors:
-                # Burada her komşu istasyon ve geçiş süresi üzerinde işlem yapılır
-                total_time += travel_time
-                    
-            return total_time
-        else:
-            # If current_station is on another line than dest_station return infinity
-            return float("inf")
+        while queue:
+            station, accumulated_time = queue.popleft()
+            if station == dest_station:
+                return accumulated_time
+        
+            visited.add(station)
+            for neighbor_station, travel_time in station.neighbors:
+                if neighbor_station not in visited:
+                    queue.append((neighbor_station, accumulated_time + travel_time))
+        
+        # If destination cannot be reached
+        return float("inf")
 
 
 # Example Usage
